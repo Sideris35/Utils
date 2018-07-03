@@ -212,6 +212,18 @@ gpg -a --export EC4926EA
 #copier le résultat sur un fichier dans l'instance
 apt-key add fichier
 apt-get update
+
+#Editions d'une image cloud:
+#Utilisation de guestfish
+ guestfish --rw -a .img
+ #Prompt guestfish
+ run
+ list-filesystems
+ mount /dev/XXX /
+ #Edition de l'image
+ #Par exemple enlever le mot de passe pour root
+ vi /etc/passwd #modifier root:x:... par root::....
+ 
 ######################################################################################################################################################################
 #																	GIT		 																					 #
 ######################################################################################################################################################################
