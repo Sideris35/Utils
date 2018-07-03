@@ -1,0 +1,7 @@
+127.0.0.1       localhost
+10.26.9.21      imgesx09
+#192.168.10.21   imgesx09
+#192.168.10.20   imgesx07 #Controlleur
+10.26.9.19      imgesx07
+10.26.9.63   imgesx12 #NTP - APT
+10.26.9.65   imgesx13 #Storage node

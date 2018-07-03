@@ -1,0 +1,505 @@
+#SITE UTILE:
+# http://bhami.com/rosetta.html
+#Modele résolution
+
+Rappel du contexte :
+*** Alerte scellement sur tope295003.
+Solutions mises en place :
+*** Vérification des logs Tripwire : évolution du système normale (OpenTrust, NIM). 
+*** Rescellement effectué.
+Reste à faire :
+*** N/A. 
+
+#Controler script 
+shellcheck nom_script
+
+#Affectation interface à vlan Ubuntu
+vconfig add interface vlan
+vconfig add eth1 200
+
+#Déploiement clé SSH
+ssh-keygen
+cat ~/.ssh/id_rsa.pub | ssh adm0278@hostname "cat - >> ~/.ssh/authorized_keys"
+
+#Controle CPU/SWAP sous solaris
+prstat -a   #Pour toutes
+zoneadm list # lister les zones
+prstat -a -z nom_zone
+
+#Test telnet
+telnet IP/nom port
+Ex: telnet reflecs-pre-prod.cnes.fr 80
+
+#rotation de log
+logrotate -v --force /etc/logrotate.conf
+
+#Afficher les caractère WINDOWS sur fichier UNIX
+cat -etv fichier
+
+#Changement de mot de passe récent
+for id in `getent passwd | cut -f1 -d\: | tail +10`; do echo $id;chage -l $id | grep -A3 Jan; done
+
+#lister les fichier qui ne sont pas compresser via gzip et compress
+find . -type f ! -name "*.gz" ! -name "*.Z"
+
+#Compression + décalage de l'horodatage des fichiers:
+for file in `find . -mtime +30 -name "audit.*"  ! -name "*.gz" | sed -e "s/.\///g"`; do new_file=audit.log.`stat -c %y $file | awk '{print $1"_"$2 }'| sed -e "s/.000000000//g"| sed -e "s/:/-/g"`.gz; gzip $file ; mv $file.gz $new_file; done
+for file in `ls -1  *.gz | grep -v audit.log-`; do new_file=audit.log.`stat -c %y $file | awk '{print $1"_"$2 }'| sed -e "s/.000000000//g"| sed -e "s/:/-/g"`.gz; mv $file $new_file; done
+for file in $(ls -1 *.gz); do new_file=audit.log.`stat -c %y $file |awk -F " " '{print $1}'`.gz;  mv $file  $new_file; done
+
+
+#Boucle compression des logs SEFNG-01
+for file in $(ls -1 *2016100* |grep -v ".gz"); do new_file=$(echo $file | awk -F. '{print $1"."$2"."$3 }'); uncompress $file;echo $file;  gzip -9 $new_file; echo $new_file ;  done 
+
+#Anonymisation des logs avec commande SED
+sed -i 's/132.149.12/AAA.AAA.AAA/g' access_log.2017-01-02 
+sed "s/[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}/AAA.AAA.AAA.AAA/g" ./*  #remplacement de toutes les adresses IP
+
+#Commande LDAPSEARCH
+ldapsearch -H ldaps://todl36006.cnes.fr -LLLxD uid=${ADMIN},ou=Administration,ou=WAF,dc=cnes,dc=fr -w ${PASSWD}  cn=${CN} uniqueMember
+#COMMANDE LDAPMODIFY
+ldapmodify -H  ldaps://todl36006.cnes.fr -xD uid=moreln,ou=Administration,ou=WAF,dc=cnes,dc=fr -W -f delete.ldif
+
+#Filtre LDAP
+ldapsearch -x -D "cn=oladmin,ou=Admin,dc=cst,dc=cnes,dc=fr" -W "(|(uid=deboissi)(cn=deboissi))" 
+
+#Compression manuel
+gzip -9 < iptables > /tmp/iptables-20160620.gz
+echo "" > fichier de log
+echo "" > fichier de log
+
+#Lister les package installés
+rpm -qa
+#Lister le directory d'installation d'un packet
+rpm -ql nom_package
+yum list (packet sur le dépot)
+
+#Installation bindfs
+yum install fuse fuse-libs-2.8.3-4.el6.x86_64 fuse-libs-2.8.3-4.el6.x86_64
+yum install fuse-libs-2.8.3-4.el6.x86_64
+rpm -ivh bindfs-1.12.6-1.x86_64.rpm
+
+#Commande TAR
+tar zcvf nom_archive dossier1 dossier2
+tar tvf nom_archive.tar.gz
+#Décompression TAR
+tar zxvf nom_archive.tar.gz
+
+#PROBLEME /VAR
+mount -o remount,ro /var && mount -o remount,rw /var
+
+# Iptables
+# ajout dans /etc/sysconfig/iptables
+-A INPUT -p tcp -m state --state NEW -m tcp --dport #PORT# -j ACCEPT
+
+#LVM
+lvcreate -n LVMqlog VolGroup00 -L 10G
+mkfs.xfs /dev/VolGroup00/LVMqlog
+
+#Augmentation LV
+lvresize -r -L +8G /dev/mapper/VolGroup00-LVHome
+#Ajout dans /etc/fstab
+mount /chemin_dossier
+
+#Enlever les commentaires d'un fichier
+sed -i '/ *#/d; /^ *$/d' /etc/squid/squid.conf
+
+#SAMBA CONF PARTAGE PUBLIC
+[global]
+workgroup = WORKGROUP
+netbios name = TU-DCTBL-P01
+server string = IBL-DATA
+security = user
+load printers = no
+disable spoolss = yes
+
+#securite reseau
+hosts allow = 132.149.41. 
+
+#===================== Share Definitions =======================
+
+[BDVOL]
+path = /local/BDVOL
+comment = BDVOL
+valid users = @svnusr
+writeable = yes
+browseable = yes
+guest ok = yes
+guest account = nobody
+directory mask = 0775
+create mask = 0775
+
+###INSTALLATION NAGIOS
+yum install --nogpgcheck agent-nagios.x86_64
+##IMPORT CLE SPACEWALK
+rpm --import http://spacewalk.cst.cnes.fr/pub/RPM-GPG-KEY-CNES-2014
+
+#KERBEROS
+#Lister le credential d'un keytab
+klist -kte bdcfou.cnes.fr.keytab
+#testet la connexion hors application
+kinit -Vkt bdcfou.cnes.fr.keytab  HTTP/bdcfou.cnes.fr@CNESNET.AD.CNES.FR
+
+#Analyse hardware
+dmidecode
+ipmitool delloem 
+sas2ircu 0 display
+hpucli 
+SMcli -n  bay-salp-p01 -c "show storageArray;"
+
+#Commande MegaCli
+#Lister les encloser Device
+./MegaCli -PDList -aALL
+
+#Changer clavier
+setxkbmap fr
+loadkeys fr
+
+#Problème SELINUX
+setenforce 0 #désactiver
+grep sealert /var/log/messages 
+sealert -l num_alert #détail de l'alerte et résolution
+
+#SAR
+sar -p -f /var/log/sa/sa29 -s 17:00:00 -e 19:00:00
+sar -q -f /var/log/sa/sa29 -s 17:00:00 -e 19:00:00
+sar -r -f /var/log/sa/sa29 -s 17:00:00 -e 19:00:00
+sar -n DEV -f /var/log/sa/sa29 -s 17:00:00 -e 19:00:00
+
+#Utilisation egrep
+ls -lrth |egrep '(Feb 11|Feb 12)'
+
+#Problème clé GPG sur Ubuntu
+gpg --keyserver hkp://keyserver.ubuntu.com:11371 --recv-key EC4926EA #8 dernier caractère de la PUBKEY
+gpg -a --export EC4926EA | sudo apt-key add -
+
+#Exemple sources.list local avec définition arch
+deb [arch=amd64] http://192.168.10.11/fr.archive.ubuntu.com/ubuntu/ xenial main
+deb [arch=amd64] http://192.168.10.11/fr.archive.ubuntu.com/ubuntu/ xenial-updates main
+deb [arch=amd64] http://192.168.10.11/ubuntu-cloud.archive.canonical.com/ubuntu xenial-updates/queens main
+deb [arch=amd64] http://192.168.10.11/fr.archive.ubuntu.com/ubuntu/ xenial universe
+deb [arch=amd64] http://192.168.10.11/fr.archive.ubuntu.com/ubuntu/ xenial-updates universe
+
+## ETCD
+export ETCDCTL_API=3
+etcdctl --write-out=table --endpoints=192.168.10.20:2379 endpoint health
+etcdctl --write-out=table --endpoints=192.168.10.20:2379 endpoint status
+
+#Sauvegarde complète tar
+tar cvpjf backup.tar.bz2 --exclude=/proc --exclude=/lost+found --exclude=backup.tar.bz2 --exclude=/mnt --exclude=/sys --exclude=/boot /
+
+#APT-FILE, voir les fichier d'un packet dispo sur un repo apt-get
+apt-file show package
+#Voir d'ou vient le fichier
+apt-file search /usr/bin/htpasswd 
+
+#Grep enlever les commentaires et ligne vide
+ cat /etc/murano/murano.conf |grep -v ^# |grep -v ^$
+
+#Outil de sauvegarde
+add-apt-repository ppa:uroni/urbackup
+apt-get install urbackup-server
+#URL: http://10.26.9.63:55414/
+#Installation client
+TF=`mktemp` && wget "https://hndl.urbackup.org/Client/2.2.6/UrBackup%20Client%20Linux%202.2.6.sh" -O $TF && sh $TF; rm $TF
+#Ajout du backup directory
+urbackupclientctl add-backupdir -d /
+service urbackupclientbackend restart
+
+##AJOUT GPG sur instance
+#sur imgesx12
+gpg -a --export EC4926EA
+#copier le résultat sur un fichier dans l'instance
+apt-key add fichier
+apt-get update
+######################################################################################################################################################################
+#																	GIT		 																					 #
+######################################################################################################################################################################
+#Création du user proprio du git
+adduser git
+#Ajouter les clé ssh.pub des utilisateurs dans le .ssh/authorized_keys si besoin
+mkdir nom_projet
+cd nom_projet
+#Génération du git
+git --bare init 
+
+#Depuis un autre PC
+cd monproject
+git init
+git add .
+git commit -m 'premiere validation'
+git remote add origin git@server_git:/opt/git/projet.git
+git push origin master
+
+#Copie du git
+git clone git@gitserveur:/opt/git/projet.git
+
+######################################################################################################################################################################
+#																	DOCKER		 																					 #
+######################################################################################################################################################################
+#Installation docker
+apt-get install docker.io
+#Rechercher
+docker search --star=10 debian
+#télécharger l'image
+docker pull nom_image
+#Charger l'image
+docker load nom_image
+#Lister les images télécharger
+docker images
+#Voir les containeur éxec
+docker ps
+docker ps -a
+#Suppresion du containeur 
+docker rm ID_container
+#Exempler lancement docker : 
+# -d lancement en mode daemon
+# --name nommer le containeur
+# -p 3000:3000 partager le port de la machien avec celui du containeur
+# -v $(pwd):/app permet de partager un dossier avec un containeur: repertoire_local:repertoire_container
+# node : imgage docker que l'on veut utiliser
+# node /app/server.js  : commande a exec sur le containeur
+docker run -d --name node-app -p 3000:3000 -v $(pwd):/app node node /app/server.js
+
+#arreter le containeur
+docker stop node-app
+
+#Sauvegarder une image en local
+# docker save -o nom_save images
+docker save -o discovery.etcd.io.docker quay.io/coreos/discovery.etcd.io
+#Charger l'image
+docker load -i nom_image
+#executer un bash sur l'image
+docker exec nom_containeur bash
+
+#Docker en mode hosté
+docker run -d --network host --name discovery quay.io/coreos/discovery.etcd.io
+
+######################################################################################################################################################################
+#																	STAF		 																					 #
+######################################################################################################################################################################
+Connexion sur CALC-GEN5Z-CI:
+su - stafrec
+stty erase "touche effacer"
+module load staf
+Export VEM_UID=STAR00; stafcon -open -pws i 
+
+Commandes:
+stafadm -board (tableau de bord)
+stafadm -list (Connexion réelle)
+stafprj -list (Liste les projets)
+stafprj -list -prj Nom_projet (Détail Projet)
+stafmdt -list -mdt Nom_MDT (détail MDT)
+
+stafnod -list (Lister répertoire)
+stafusp -list (Lister les droits)
+
+stafcon -close (Fermer connexion) 
+
+######################################################################################################################################################################
+#																	CERTIFICATS 																					 #
+######################################################################################################################################################################
+#Génération certificat RENATER
+openssl req -nodes -newkey rsa:2048 -sha256 -keyout site.key -out gaiaweb-rct.cnes.fr.csr
+#Certificat auto signés
+openssl x509 -req -days 365 -in example.csr -signkey example.key -out example.crt
+
+#Lire un certificat
+openssl x509 -text -in w3-ptsc.crt.28122016
+
+
+#Comparer MD5 du certificat et de la clé
+openssl rsa -noout -modulus -in .key| openssl md5
+openssl x509 -noout -modulus -in .crt | openssl md5
+openssl req -noout -modulus -in CSR.csr | openssl md5
+
+#Extraire P12
+#Extraction du certificat en « *.crt » :
+openssl pkcs12 -nokeys -clcerts -in nomFichier.p12 -out NomFichier.crt
+#Extraction de la clé privée en « *.key » :
+openssl pkcs12 -nodes -nocerts -in nomFichier.p12 -out NomFichier.key
+
+#Extraite pem
+openssl x509 -outform pem -in .pem -out .crt
+openssl pkey -in .pem -out .key
+
+#Tester un site et voir Certif
+curl -v https://www.theia-land.fr
+curl --cacert /etc/ssl/certs/DigiCertCA.crt  -v https://sso.theia-land.fr/
+
+
+######################################################################################################################################################################
+#																	SCELLEMENT																						 #
+######################################################################################################################################################################
+#Voir qui a changer son mot de passe:
+for id in `getent passwd | cut -f1 -d\: | tail +10`; do echo $id;chage -l $id | grep -A3 Dec; done
+
+#Lecture dernière log tripwire
+/usr/local/tripwire/tfs/bin/twprint -m r -c /etc/tripwire/tfs/tw.cfg -r /var/tripwire/tfs/report/tope295003.cst.cnes.fr-20161230-040001.twr |less
+
+#Lancement d'un check Tripwire
+/usr/local/tripwire/tfs/bin/tripwire --check --cfgfile "/etc/tripwire/tfs/tw.cfg"
+
+#Update de la base Tripwire
+/usr/local/tripwire/tfs/bin/tripwire --update --cfgfile "/etc/tripwire/tfs/tw.cfg" --report-file "/var/tripwire/tfs/report/tope295003.cst.cnes.fr-20161230-072348.twr" -a*
+
+#Afficher les fichier de conf 
+#Policy:
+/usr/local/tripwire/tfs/bin/twadmin -m p --cfgfile /usr/local/tripwire/tfs-http/bin/tw.cfg
+#CFG
+/usr/local/tripwire/tfs/bin/twadmin -m f --cfgfile /usr/local/tripwire/tfs-http/bin/tw.cfg
+
+#GEIPAN02 (TODL36004)
+tripwire --update --cfgfile "/usr/local/tripwire/tfs-http/bin/tw.cfg" --site-keyfile "/etc/tripwire/tfs-http/key/site.key" --report-file "/var/tripwire/tfs-http/report/todl36004-20170222- 41125.twr" -a
+
+/usr/local/tripwire/tfs/bin/tripwire --check --cfgfile "/usr/local/tripwire/tfs-http/bin/tw.cfg"
+
+
+######################AIDE######################
+/usr/sbin/aide --config=aide-conf.conf --check
+/usr/sbin/aide --config=aide-conf.conf --update
+
+#Exemple fichier de confdatabase=file:/var/lib/aide/w3-bdcfou/site.db.gz
+database_out=file:/var/lib/aide/w3-bdcfou/site.db.new.gz
+gzip_dbout=yes
+
+verbose=5
+
+report_url=file:/var/log/sites/w3-bdcfou/aide/site.log
+#report_url=mailto:dominique.vier@cnes.fr
+report_url=stdout
+
+ALLXTRAHASHES = sha1+rmd160+sha256+sha512+tiger
+EVERYTHING = R+ALLXTRAHASHES
+NORMAL = R+rmd160+sha256
+DIR = p+i+n+u+g+acl+selinux+xattrs
+PERMS = p+i+u+g+acl+selinux
+LOG = >
+LSPP = R+sha256
+DATAONLY =  p+n+u+g+s+acl+selinux+xattrs+md5+sha256+rmd160+tiger
+
+/home/w3-bdcfou/www/    NORMAL
+/home/w3-bdcfou/data/    NORMAL
+/home/w3-bdcfou/tomcat/webapps/    NORMAL
+!/home/w3-bdcfou/data/upload
+!/home/w3-bdcfou/data/download
+!/home/w3-bdcfou/data/backup
+!/home/w3-bdcfou/data/logs
+!/home/w3-bdcfou/data/ssl
+
+
+######################################################################################################################################################################
+#																	SOPHOS																						     #
+######################################################################################################################################################################
+yum install cifs-utils.x86_64 
+
+mount -t cifs //10.91.200.11/sophos52$/Sophos_Update/CIDs/S013/savlinux -o username=sa-sophoslect-001,password='$0pH0$L&cT' /mnt
+mount -t cifs //10.120.224.56/sophos52$/Sophos_Update/CIDs/S013/savlinux -o username=sa-sophoslect-001,password='$@S0ph0sL3ct' /mnt
+							
+#Pour CENTOS/RHEL 7
+mount -t cifs //10.91.200.11/sophos52$/Sophos_Update/CIDs/S013/savlinux -o username=sa-sophoslect-001,password='$0pH0$L&cT',sec=ntlm /mnt
+mount -t cifs //10.120.224.56/sophos52$/Sophos_Update/CIDs/S013/savlinux -o username=sa-sophoslect-001,password='$@S0ph0sL3ct',sec=ntlm /mnt																											
+
+mount -o,remount,nodev,exec,nosuid /mnt
+mount -o,remount,nodev,exec,nosuid /tmp
+sm	
+cd /mnt
+./install.sh
+
+#Installation
+MCO\SOPH\Manuel d’Installation/MII-SOPH-CGINS_TMA_AV_PROC_3446_Sophos_LINUX_INSTALLATION_SAV_V9_SOPRA 
+#Rajouter dans /etc/sysconfig/iptables 
+-A INPUT -m state --state NEW -m multiport -m tcp -p tcp --dports 8192,8193,8194 -j LOG --log-level debug --log-prefix "iptables: # SOPHOS # "
+ 
+#Ajout de Pierre SOPHOS
+-A INPUT -p tcp -m state --state NEW -m tcp --dport 8192 -j LOG --log-level debug --log-prefix "iptables: # SOPHOS # "
+-A INPUT -p tcp -m state --state NEW -m tcp --dport 8192 -j ACCEPT 
+-A INPUT -p tcp -m state --state NEW -m tcp --dport 8193 -j LOG --log-level debug --log-prefix "iptables: # SOPHOS # "
+-A INPUT -p tcp -m state --state NEW -m tcp --dport 8193 -j ACCEPT 
+-A INPUT -p tcp -m state --state NEW -m tcp --dport 8194 -j LOG --log-level debug --log-prefix "iptables: # SOPHOS # "
+-A INPUT -p tcp -m state --state NEW -m tcp --dport 8194 -j ACCEPT
+
+#Fichier de Configuration 
+/produit/sophos-av/bin/savconfig query 
+./savconfig add ExcludeFilesystems nfs
+./savconfig remove ExcludeFilesystems nfs
+
+#MAJ manuel poste autonome
+#Verification de la maj
+/produit /sophos-av/bin/savdstatus --version
+#Telecharger l'IDE
+http://www.sophos.fr/downloads/ide/ correspondant à la version du moteur.
+#Décompresser le fichier zip dans le répertoire /produit /sophos-av/lib/sav
+/produit /sophos-av/bin/savdctl stop sav-protect
+/produit /sophos-av/bin/savdctl start sav-protect
+
+
+######################################################################################################################################################################
+#																	TU-LOGS-PXX																						 #
+######################################################################################################################################################################
+
+## Fichier de conf /etc/rsyslog.conf
+    voir le template: fichier rsyslog.con
+    Il faut décommenté la ligne 5 et modifuer par le nom du serveur en minuscule
+    #$LocalHostname <HOSTNAME>
+    
+    #exemple
+    $LocalHostname tu-w3exsit-p12
+
+
+## Log ne sont pas envoyer aux serveurs centreaux:
+    
+    ##  Problème SeLinux:
+    # Pour ce faire il faut vérifier si SeLinux ne bloque pas ce transfert
+    
+    # Vérifier la configuration. Les ports utilisés sont 5555/UDP et 5555/TCP
+    semanage port -l | grep syslog
+    syslogd_port_t                 tcp      6514, 601
+    syslogd_port_t                 udp      514, 6514, 601
+    
+    # Ajout de ces ports à SeLinux:
+    semanage port -a -t syslogd_port_t -p tcp 5555
+    semanage port -a -t syslogd_port_t -p udp 5555
+
+    
+Source:https://access.redhat.com/solutions/54363
+
+
+## Décommissionnement de serveur
+    Normalement les serveurs Unix/Linux envoient leurs logs à tu-logs-p01 et tu-logs-p02.
+    Sur les tu-logs-p0X, un crontab /produit/nagios/plugins/Check_LOGS.ksh tourne 3 fois par jours à 8h, 12h et 16h UTC.
+    Celui-ci renseigne le fichier /produit/nagios/plugins/Check_LOGS.result pour indiquer les serveurs avec des logs manquante.
+    
+    ## Actions à faire:
+    Rajouter une ligne avec le nom du serveur dans /produit/nagios/plugins/Check_LOGS.exclude.
+	
+######################################################################################################################################################################
+#																	IPTABES																							 #
+######################################################################################################################################################################
+
+### NAGIOS ###
+-A INPUT -p tcp -m state --state NEW -m tcp --dport 5666 -j LOG --log-level debug --log-prefix "iptables: # NAGIOS # "
+-A INPUT -p tcp -m state --state NEW -m tcp --dport 5666 -j ACCEPT
+### SVGS ###
+-A INPUT -p tcp -m state --state NEW -m tcp --dport 2224 -j LOG --log-level debug --log-prefix "iptables: # SVGS # "
+-A INPUT -p tcp -m state --state NEW -m tcp --dport 2224 -j ACCEPT
+### NETBACKUP ###
+-A INPUT -p tcp -m state --state NEW -m tcp --dport 1556 -j ACCEPT
+-A INPUT -p tcp -m state --state NEW -m tcp --dport 13724 -j ACCEPT
+# SOPHOS
+-A INPUT -m state --state NEW -m multiport -m tcp -p tcp --dports 8192,8193,8194 -j LOG --log-level debug --log-prefix "iptables: # SOPHOS # "
+# NIM
+-A INPUT -m state --state NEW -m tcp -p tcp --dport 899 -j ACCEPT
+
+### Exemple fichier .repo ###
+[google-chrome]
+name=google-chrome
+baseurl=http://dl.google.com/linux/chrome/rpm/stable/$basearch
+enabled=1
+gpgcheck=1
+gpgkey=https://dl-ssl.google.com/linux/linux_signing_key.pub
+
+#Lister et supprimer Iptables
+sudo iptables -L --line-number #liste les regles avec un ID
+sudo iptables -D <INPUT,OUTPUT,FORWARD> <ID> #Supprimer la regles
+

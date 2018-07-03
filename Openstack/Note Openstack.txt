@@ -1,0 +1,388 @@
+###############################################################################################################################################################################
+#																																											  #
+#																			OPENSTACK																						  #
+#																																											  #
+###############################################################################################################################################################################
+
+### UTILITAIRE ###
+Openstack for RHEL: www.rdoprojet.com
+Site openstack (docs + proc): www.openstack.com
+
+### LEXIQUE ###
+Horizon: Interface graphique de Openstack
+Nova: Service de gestion des instances
+Flavors: template des paramêtres hardware des instances (ex: RAM, CPU ...)
+Neutron: Service de gestion du réseau du cloud et des instances
+Glance: Gestion des images des instances (ISO, IMG, ...)
+Cinder: Gestion des volumes
+Swift: Service de gestion de stockage
+Ceph: Service de gestion de stockage (Add-on de swift)
+Endpoint: Url ou se connecte le service pour communiquer avec RDO et les autres services
+Keystone: Gestion des IDs et authentification
+Ring: Détermine ou les date sont stockés (object, containeur, account service)
+SDN: Service defined Networking
+Broadcast Domaine: réseaux des instances
+OVS: Open Virtual Switch
+Public Network: réseau externe au service RDO
+Private Network: réseau interne à Openstack
+br-ec: external bridge
+br-int: integration bridge
+br-tun: tunnel bridge
+
+### INSTALLATION RDO VIA PACKSTACK ###
+Le fichier answer.txt sera utilisé pour paramétrer tous les composants de OPENSTACK, la configuration IP¨ainsi que les PASSWORD
+
+yum update   #préférable pour l'installation de RDO
+#Vérifier la résolution du nom local
+yum install -y https://rdoproject.org/repos/rdo-release.rpm
+systemctl disable NetworkManager
+systemctl stop NetworkManager
+#Ajouter dans le grub les lignes suivantes pour obtenir des interfaces réseaux ETHXX
+vim /etc/default/grub
+add net.ifnames=0
+biosdevname=0
+grub2-mkconfig -o /boot/grub2/grub.cfg
+#Effectuer un SNAPSHOT
+yum install -y openstack-packstack
+#Génération du fichier ANSWER.TXT
+packstack --gen-answer -f /root/answer.txt
+
+### QUELQUES CONSEIL DE MODIFICATION DU ANSWER.TXT ###
+CONFIG_DEFAULT_PASSWORD=password #MDP par default
+CONFIG_SWIFT_INSTALL=n #Voir si on utilise SWIFT ou CEPH
+CONFIG_HEAT_INSTALL=y #Orchestration
+CONFIG_NTP_SERVERS=pool.ntp.org #Voir NTP SI
+CONFIG_KEYSTONE_ADMIN_PW=password #MDP admin CLOUD
+CONFIG_CINDER_VOLUME=
+CONFIG_NEUTRON_OVS_BRIDGE_MAPPING=physnet1:br-eth1 #configuration de l'interface BRIDGE
+CONFIG_NEUTRON_OVS_IFACES_MAPPING=br-eth1:eth1
+CONFIG_NEUTRON_OVS_TUNNEL-IF=eth1
+CONFIG_HORIZON_SSL=y #Activer le SSL sur l'interface Graphique
+CONFIG_PROVISION_DEMO=n
+CONFIG_OVS_TUNNEL_IF=n
+#######################################################
+#Lancement de l'installation
+packstack --answer-file /root/answer.txt
+
+## CREATION DE LA BR-EX
+cd /etc/sysconfig/network-scripts
+cp ifcfg-eth0 ifcfg-br-ex
+vim ifcfg-eth0 #Enlever tout, ajout de DEVICE=eth0, TYPE="OVSPort", OVS_BRIDGE=br-ex, BOOTPROTO="none", ONBOOT=yes, DEVICETYPE=ovs
+vim ifcfg-br-ex #TYPE="OVSBridge", DEVICE=br-ex, BOOTPROTO="static", DEVICETYPE=ovs, PEERDNS=yes, USERCTL=yes, laisser ONBOOT, IPADDR0,PREFIX0 GATEWAR DNS1, enlever le reste
+reboot
+
+### COMMAND LINE ###
+# Toute action via ligne de commande on doit sourcer le fichier keystone (le keystonerc_admin est créé lors de l'installation de RDO)
+source keystonerc_admin
+# 2 façon de faire soit utiliser les nom des services (ex: nova, keystone etc...) ou la commande générique openstack
+openstack service list
+openstack service show id-service
+nova hypervisir-list
+
+#Création d'un crédential keystone
+cp keystonerc_admin keystone_toto
+#Changement de la variable USER, PW et TENANT_OS
+
+#Création d'un projet
+openstack project list
+openstack project show project
+openstack project create nom_projet
+
+#Création d'un domaine (Similaire ou Organisation sur Satellite)
+openstack domain list
+openstack domain create nom_domain
+#Création d'un group 
+openstack group create [--domaine nom_domaine] nom_group
+#Création d'un user
+openstack user create --password $PW nom_user
+#Ajout user dans groupe
+openstack group add user nom_group nom_user
+
+#Création de roles
+# /!\ Les roles _admin_ et members sont suffisants
+openstack role list
+openstack role create nom_role
+openstack user role list
+openstack role add --projet nom_project --user nom_user --member nom_role
+
+#Création de flavors
+#l'option 'is-public True' est utilisé pour que tout le monde voit ce template
+openstack flavor create --ram 256 --disk 1 --vcpus 1 --public nom_flavor
+openstack flavor list
+openstack flavor delete
+
+#Importation d'images
+glance image-create --name smal --disk --format qcow2 --container-format bare --visibility public --file nom_image.img
+
+#Gestion MDP user
+openstack user set --pasword PW nom_user
+
+#lancement d'une instances
+nova boot --flavor nom_flavor  --image nom_image  nom_instance
+nova list
+
+#Gestion des SSH KEYS et Security Group
+nova keypair-add --pub-key id.rsa.pub nom_clé
+nova keypair-list
+nova secugroup-list
+nova secgroup-create nom_group description
+nova secgroup-add-rule secgroup ip-proto tcp/udp from-port 80 to-port 80 cidr
+
+#Gestion des quotas
+openstack quota show nom_instance
+openstack quota set #voir help
+
+#Gestion des adresses IPs
+neutron net-list
+neutron net-create nom_reseau
+neutron subnet-create --name nom_subnet --gateway ip_gw nom_reseau adresse_reseau --allocation-pool start=10.0.0.100,end=10.0.0.200
+
+#Création d'un routeur
+neutron router-create nom_routeur
+neutron routeur-gateway-set nom_routeur nom_reseau-gw
+neutron routeur-interface-add nom_routeur nom_reseau
+
+### KEYSTONE ###
+keystone service-list
+keystone role-list
+keystone endpoint-list
+keystone user-list
+
+#Création d'un Endpoint /!\ d'abord création du service
+keystone service-create ...
+keystone service-list
+openstack endpoint create--public http://IP_RDO_SERV:Port --adminurl http://IP_RDO_SERV:Port --internaurl http://IP_RDO_SERV:Port ID_service
+
+### SWIFT ###
+### INSTALLATION DE SWIFT ###
+yum install -y openstack-swift-proxy openstack-swift-object openstack-swift-container openstack-swift-account python-swiftclient nomcached
+source keystone
+keystone user-create --name swift --pass password --tenant services
+keystone role-create --name SwiftOperator
+keystone user-role-add --role admin --tenant services --user swift
+# Si pas de service dans keystone service-list
+keystone service-create --name swift --type Object-store --description "Openstack Object Storage"
+#Création du endpoint
+keystone endpoint-create --service swift --region RegionOne --publicurl "http://192.168.4.10:8080/v1:AUTH_%(tenant_id)s" --adminurl "http://192.168.4.10:8080/v1:AUTH_%(tenant_id)s" --internalurl "http://192.168.4.10:8080/v1:AUTH_%(tenant_id)s"
+
+### DEPLOIEMENT D'UN STORAGE NODE ###
+#Ajouter deux disques et les monté sur /srv/node/z{1,2}d1
+#Ajout dans le fstab et chown -R swift:swift /srv/node
+#restorecon -Rv /srv
+
+#A scripter les crudini
+crudini --set /etc/swift/swift.conf swift_hash swift_hash_path_prefix $(openssl rand -hex 10)
+crudini --set /etc/swift/swift.conf swift_hash swift_hash_path_suffix $(openssl rand -hex 10)
+crudini --set /etc/swift/account-server.conf DEFAULT bind_ip ip_serverRDO
+crudini --set /etc/swift/container-server.conf DEFAULT bind_ip ip_serverRDO
+crudini --set /etc/swift/object-server.conf DEFAULT bind_ip ip_serverRDO
+
+#Création d'un Ring
+source keystones
+swift-ring-builder /etc/swift/account.builder create 12 2 1
+swift-ring-builder /etc/swift/container.builder create 12 2 1
+swift-ring-builder /etc/swift/object.builder create 12 2 1
+#Ajout des devices dans les ring
+for i in 1 2; do swift-ring-builder /etc/swift/account.builder add z$(i)-ip_serverRDO:6202/z$(i)d1 100; done
+for i in 1 2; do swift-ring-builder /etc/swift/container.builder add z$(i)-ip_serverRDO:6201/z$(i)d1 100; done
+for i in 1 2; do swift-ring-builder /etc/swift/object.builder add z$(i)-ip_serverRDO:6200/z$(i)d1 100; done
+#Verifier les port SELINUX
+#Distribution des partitions
+swift-ring-builder /etc/swift/account.builder rebalance
+swift-ring-builder /etc/swift/container.builder rebalance
+swift-ring-builder /etc/swift/object.builder rebalance
+
+#Verification de la construction du ring (fichier gz dans /etc/swift
+ls /etc/swift/*.gz
+
+systemctl enable swift-account
+systemctl enable swift-container
+systemctl enable swift-object
+oepnstack-service start swift
+chown -R root:swift /etc/swift
+
+#Création d'un Proxy Swift
+crudini --set /etc/swift/proxy-server.conf filter:authtoken admin_tenant=name services
+crudini --set /etc/swift/proxy-server.conf filter:authtoken auth_host_name ip_serverRDO
+crudini --set /etc/swift/proxy-server.conf filter:authtoken auth_uri http://ip_serverRDO:5000
+crudini --set /etc/swift/proxy-server.conf filter:authtoken admin_user swift
+crudini --set /etc/swift/proxy-server.conf filter:authtoken admin_password password
+
+systemctl start memcached & openstack-swift-proxy
+systemctl enable memcached & openstack-swift-proxy
+
+#commande swift
+# d'abord set les variables
+swift-ring-builder /etc/swift/account.builder
+swift-ring-builder /etc/swift/container.builder
+swift-ring-builder /etc/swift/object.builder
+
+swift list
+swift post noeud
+swift upload noeud fichier
+
+### CEPH ###
+#Composant qui peut remplacer Swift
+#Il utilise un systeme de noeud avec un master et un esclave
+
+#Sur le noeud master
+yum -y update; reboot
+vim /etc/yum.repos.d/start-ceph.repos
+		[ceph-noarch]
+		name = Ceph noarch Packages
+		baseurl = http://ceph.com/rpm.banner/el7/noarch
+		enable=1
+		gpgcheck=1
+		type=rpm-nd
+		gpgkey=https://ceph.com/git/?p=ceph.git;a--blob_fain;f=Keys/release.asc
+#Vérification de la syncrho NTP
+#!!!!!!!!!!!!!!!!!!! ACTION a faire sur les noeuds également!!!!!!!!!!!!!#
+useradd ceph; echo password |passwd --stdin ceph
+echo "ceph ALL=(root NOPASSWD:ALL" > /etc/sudoers.d/ceph
+chmod 0400 /etc/sudoers.d/ceph
+#Verification du sshd config que: PasswordAuthentification Yes
+
+#création de la clé ssh root et ceph sur le noeud admins
+ssh-keygen
+ssh-copy-id ceph@node
+#Compléter les fichier hosts avec le nom de chaque noeud
+#Sur tout les noeuds
+setenforce 0; yuù install -y yum-plugin-properties
+firewall-cmd --add-port 6789/tcp --permanent;firewall-cmd reload
+
+#sur les noeuds
+yum update -yumsed -i "s/requiretty/\!requiretty/" /etc/sudoers
+
+#La doc d'installation est disponible sur le site CEPH
+
+## Deploy de CEPH ##
+#Sur le master
+su - ceph
+mkdir ceph-cluster
+cd ceph-cluster
+sudo yum install -y ceph-deploy
+ceph-deploy new nom_master
+ceph-deploy install hostname1 .... hostnameX
+ceph-deploy mon create-initial
+
+#Sur les noeuds
+#formater les disk en xfs
+mkfs.xfs /dev/sdXX
+mkdir -p /var/local/osd0 #partition de stockage
+echo "/dev/sdXX	/var/local/osd0 xfs noatime,nobarrier	0	0" /etc/fstab
+#/!\ Il faut que se soit une partition dédié
+
+#Sur le master
+ceph-deploy osd prepare nom_noeud:/var/local/osd0 #Pour chaque noeud
+ceph-deploy osd activate nom_noeud:/var/local/osd0 nom_noeud:/var/local/osd1 ...
+ceph-deploy admin nom_master nom_noeud ...
+sudo chmod +r /etc/ceph/ceph-client.admin-keyring
+
+#Test du cluster
+#Check current pool
+cephs osd lspools
+#create a pool and verify using 50 placement groups
+cephs osd pool create test 50
+#create object
+echo Hello > /tmp/text.txt
+#add
+rados put try -1 /tmp/test.txt --pool test
+#verify
+tados -p test ls try -1
+#get file
+rados get try -1 /tmp/somefile --pool=test
+
+## Configuration des bloc device via un client ceph
+#sur le noeud admin
+deph-deploy install ceph-client
+ceph-deploy admin ceph-client
+
+#creation d'un block device
+rbd create foo --size 4096
+#map image du block device
+sudo rbd map foo --name client.admin
+#creation FS dans le block device
+sudo mkfs.ext4 -m0 /dev/rbd/rbd/foo
+
+## Configuration Ceph GW
+#Sur le noeud master
+ceph-deploy install --rgw nom_gateway_node
+ceph-deploy rgw create
+#veirifer que le service ceph-radosgw.service fonctionne sur la gateway node
+#tester une authentification sur l'url http://nom_client:7480
+
+### GLANCE ###
+## FORMAT compatible
+# raw vdi(Virtuable Box) vhd(Vmware...) ISO vmdk qcom2 aki(AmazonKernelImage) ami(AmazonMachineImage)
+#CMD
+kaystone service-get glance
+keystone catalog --service image
+keystone user-get glance
+glance image -list --all-tenants
+glance image-create --name small --is-public True --disk-format qcow2 --container-format bare --copy-from url.img
+glance image-list
+glance image-show small
+
+#Création d'une image
+#utiliser virt-sysprep pour enlever la MAC Adresse,user et SSH keystone
+#pour savoir le format d'une image
+qemu-img info .img
+
+### CINDER ###
+# Cinder est le block storage il gere le stockage et les ressource des instances)
+# Port 8776
+cinder list
+
+#Managing Cinder list
+source keystone
+cinder create --display-name Vol1 1 #1 volume de 1G
+cinder list
+grep backup-driver /etc/cinder/cinder.conf
+enable et start de openstack-cinder-backup
+cinder backup-create vol1 --display-name Vol1-backup
+cinder backup-list
+
+#Snapshot
+Cinder snapshot-list
+cinder snapshot-create vol1
+
+### NEUTRON ###
+# Neutron propose aussi du LBAAS (Load Balancing as a service) ou du FWAAS (Firewall as a service)
+# Plusieurs services
+# neutron-openswitch-agent
+# neutron-dhcp-agent
+# neutron-l3-agent
+# neutron-ovs-cleanup
+# neutron-openswitch-agent
+###
+
+#Configuration d'un tenant networking
+source keystone
+neutron router-create nom_routeur
+neutron net-create nom_réseau
+neutron subnet-create --name nom_subnet nom_réseau ip_subnet
+neutron router-interface --add nom_routeur nom_subnet
+neutron port-list
+neutron router-gateway-set nom_routeur public
+neutron floatingip-create public
+neutron floatingip-list
+
+
+### NOVA ###
+# Pré-requis pour un instance:
+# le réseau interne et externe est bien configuré
+# SSH Keys
+# Select Image et flavors
+# Lauch instance
+# Connect to the tenant networking
+# allocate floating IP
+# Allocate Cinder Volume
+
+nova list --all-tenants
+nova boot --flavor m1.tiny --iumage web --poll test
+
+#remove instance
+nova list --all-tenants
+nova delete VM-id
+nova service-list
+nova service-disable --reason "needstogo" nom_server nom_compute

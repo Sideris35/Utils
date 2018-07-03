@@ -1,0 +1,9 @@
+name: imgesx07
+data-dir: /var/lib/etcd
+initial-cluster-state: 'new'
+initial-cluster-token: 'etcd-cluster-01'
+initial-cluster: imgesx07=http://192.168.10.20:2380
+initial-advertise-peer-urls: http://192.168.10.20:2380
+advertise-client-urls: http://192.168.10.20:2379
+listen-peer-urls: http://0.0.0.0:2380
+listen-client-urls: http://192.168.10.20:2379

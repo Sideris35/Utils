@@ -1,0 +1,72 @@
+###############################################################################################################################################################################
+#																																											  #
+#																			DEVSTACK																						  #
+#																																											  #
+###############################################################################################################################################################################
+Site éditeur: https://docs.openstack.org/devstack/latest/
+GITHUB devstack: https://git.openstack.org/cgit/openstack-dev/devstack/
+
+### INSTALL ###
+sudo useradd -s /bin/bash -d /opt/stack -m stack
+echo "stack ALL=(ALL) NOPASSWD: ALL" | sudo tee /etc/sudoers.d/stack
+sudo su - stack
+sudo apt-get install git -y || sudo yum install -y git
+git clone https://git.openstack.org/openstack-dev/devstack
+cd devstack
+git checkout stable/queens
+
+#Edit a local.conf file with 4 passwords preset at the root of the devstack git repo.
+#Set FLOATING_RANGE to a range not used on the local network, i.e. 192.168.1.224/27. This configures IP addresses ending in 225-254 to be used as floating IPs.
+#Set FIXED_RANGE and FIXED_NETWORK_SIZE to configure the internal address space used by the instances.
+#Set FLAT_INTERFACE to the Ethernet interface that connects the host to your local network. This is the interface that should be configured with the static IP address mentioned above.
+#Set the administrative password. This password is used for the admin and demo accounts set up as OpenStack users.
+#Set the MySQL administrative password. The default here is a random hex string which is inconvenient if you need to look at the database directly for anything.
+#Set the RabbitMQ password.
+#Set the service password. This is used by the OpenStack services (Nova, Glance, etc) to authenticate with Keystone.
+[[local|localrc]]
+FLOATING_RANGE=192.168.1.224/27
+FIXED_RANGE=10.11.12.0/24
+FIXED_NETWORK_SIZE=256
+FLAT_INTERFACE=eth0
+ADMIN_PASSWORD=supersecret
+DATABASE_PASSWORD=iheartdatabases
+RABBIT_PASSWORD=flopsymopsy
+SERVICE_PASSWORD=iheartksl
+
+source local.conf
+#Start install
+./stack.sh
+
+## Exemple local.conf avec Load Balancer ##
+[[local|localrc]]
+# Load the external LBaaS plugin.
+enable_plugin neutron-lbaas https://git.openstack.org/openstack/neutron-lbaas
+enable_plugin octavia https://git.openstack.org/openstack/octavia
+
+# ===== BEGIN localrc =====
+DATABASE_PASSWORD=password
+ADMIN_PASSWORD=password
+SERVICE_PASSWORD=password
+RABBIT_PASSWORD=password
+# Enable Logging
+LOGFILE=$DEST/logs/stack.sh.log
+VERBOSE=True
+LOG_COLOR=True
+# Pre-requisite
+ENABLED_SERVICES=rabbit,mysql,key
+# Horizon
+ENABLED_SERVICES+=,horizon
+# Nova
+ENABLED_SERVICES+=,n-api,n-cpu,n-cond,n-sch
+# Glance
+ENABLED_SERVICES+=,g-api,g-reg
+# Neutron
+ENABLED_SERVICES+=,q-svc,q-agt,q-dhcp,q-l3,q-meta
+# Enable LBaaS v2
+ENABLED_SERVICES+=,q-lbaasv2
+ENABLED_SERVICES+=,octavia,o-cw,o-hk,o-hm,o-api
+# Cinder
+ENABLED_SERVICES+=,c-api,c-vol,c-sch
+# Tempest
+ENABLED_SERVICES+=,tempest
+# ===== END localrc =====
