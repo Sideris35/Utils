@@ -1,0 +1,46 @@
+root@imgesx07:/var/log/neutron# brctl show
+bridge name     bridge id               STP enabled     interfaces
+brq0519fe64-bd          8000.26e36a534a13       no              tap7f27a3be-df
+                                                        tapd7b0de41-97
+                                                        vxlan-39
+brq2906eaf1-32          8000.001a64d034c0       no              enp6s0
+                                                        tap4081b8f0-35
+                                                        tap604927e3-49
+                                                        tapb71c9e5d-a4
+brqf6b243ac-2c          8000.26908d68dc6c       no              tap47204b01-87
+                                                        tap812e0ded-87
+                                                        vxlan-48
+
+root@imgesx07:/var/log/neutron# route -n
+Kernel IP routing table
+Destination     Gateway         Genmask         Flags Metric Ref    Use Iface
+10.26.9.0       0.0.0.0         255.255.255.128 U     0      0        0 enp4s0.748
+10.67.188.0     10.26.9.1       255.255.252.0   UG    0      0        0 enp4s0.748
+172.17.0.0      0.0.0.0         255.255.0.0     U     0      0        0 docker0
+192.168.10.0    0.0.0.0         255.255.255.0   U     0      0        0 brq2906eaf1-32
+192.168.122.0   0.0.0.0         255.255.255.0   U     0      0        0 virbr0
+
+
+
+														
+root@imgesx09:/var/log/nova# brctl show
+bridge name     bridge id               STP enabled     interfaces
+brq0519fe64-bd          8000.6e6b5415379a       no              tapcb358f28-0d
+                                                        vxlan-39
+brq2906eaf1-32          8000.001a64d0192a       no              enp6s0
+virbr0          8000.525400f94945       yes             virbr0-nic
+
+root@imgesx09:/var/log/nova# route -n
+Kernel IP routing table
+Destination     Gateway         Genmask         Flags Metric Ref    Use Iface
+0.0.0.0         192.168.10.11   0.0.0.0         UG    100    0        0 brq2906eaf1-32
+10.26.9.0       0.0.0.0         255.255.255.128 U     0      0        0 enp4s0.748
+10.67.188.0     10.26.9.1       255.255.252.0   UG    0      0        0 enp4s0.748
+192.168.10.0    0.0.0.0         255.255.255.0   U     0      0        0 brq2906eaf1-32
+192.168.122.0   0.0.0.0         255.255.255.0   U     0      0        0 virbr0
+
+
+#####
+Lancer linuc-bridge-agent sur le compute
+puis sur le controleur
+/etc/init.d/neutron-linux-bridge-cleanup restart; /etc/init.d/neutron-linux-bridge-agent restart
