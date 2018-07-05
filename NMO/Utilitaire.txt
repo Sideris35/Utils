@@ -224,6 +224,16 @@ apt-get update
  #Par exemple enlever le mot de passe pour root
  vi /etc/passwd #modifier root:x:... par root::....
  
+ 
+ #Utilisation de heat
+ #Afficher les job en cours
+  heat stack-list -n
+ #Afficher le détail 
+ heat resource-list 82bb9fc3-f34c-4097-943a-752d3d554850 #ID STACK
+ #heat resource-show ID_STACK Nom_resource
+ heat resource-show 82bb9fc3-f34c-4097-943a-752d3d554850 0 
+ 
+ 
 ######################################################################################################################################################################
 #																	GIT		 																					 #
 ######################################################################################################################################################################
