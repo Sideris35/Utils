@@ -1,0 +1,1 @@
+wevtutil el | Foreach-Object {Write-Host "Nettoyage des logs $_"; wevtutil cl "$_"}
