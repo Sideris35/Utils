@@ -1,5 +1,6 @@
 #SITE UTILE:
 # http://bhami.com/rosetta.html
+# https://www.server-world.info/en/
 #Modele résolution
 
 Rappel du contexte :
@@ -233,6 +234,10 @@ apt-get update
  #heat resource-show ID_STACK Nom_resource
  heat resource-show 82bb9fc3-f34c-4097-943a-752d3d554850 0 
  
+#Forcer syncrho chrony
+chronyc -a makestep
+#Voir status heure chrony par rapport au ntp
+chronyc tracking
  
 ######################################################################################################################################################################
 #																	GIT		 																					 #
