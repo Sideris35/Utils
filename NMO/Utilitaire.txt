@@ -530,3 +530,46 @@ gpgkey=https://dl-ssl.google.com/linux/linux_signing_key.pub
 sudo iptables -L --line-number #liste les regles avec un ID
 sudo iptables -D <INPUT,OUTPUT,FORWARD> <ID> #Supprimer la regles
 
+######################################################################################################################################################################
+#																	NEXUS - REPO PRIVE																							 #
+######################################################################################################################################################################
+#DL tar: https://cta-service-cms2.hubspot.com/ctas/v2/public/cs/c/?cta_guid=f59d5f10-099f-4c66-a622-0254373f4a92&placement_guid=920dd7b5-7ef3-47fe-9600-10fecad8aa32&portal_id=1958393&redirect_url=APefjpG1KF6RHmY-Vlp6MZhyEzERkFfJcRcfWWPg3IiuVPq-dO1zDefhAuyz-eQfW3p4u-WvFb7VG4Zr98Y-E4dRAogc0nBJNWcN3Bd6ODPcaR6MtSuug5cHO4uhUsYmpIYwR0vjBfS3yCdGNVL5-iHjnAiQUqNQdV3zW3F0EBTTTu2k81q_XFPqbh-8LEfcHPugY-R-hfNvXd5dpJTFrsVyznqQVkEYmsADd1-W7l-qA-5pXPD9BMjyPxi3M8IcsuhXNlB-FYIL&hsutk=9387ddeaa30c105baa6963236dcbcaeb&canon=https%3A%2F%2Fwww.sonatype.com%2Fnexus-repository-oss&click=4e62fe01-90c2-4b60-a151-a46bf62bf661&utm_referrer=https%3A%2F%2Fwww.sonatype.com%2Fdownload-nexus-repository-trial&pageId=5666824864&__hstc=31049440.9387ddeaa30c105baa6963236dcbcaeb.1531311744694.1531311744694.1531313804998.2&__hssc=31049440.1.1531313804998&__hsfp=3940563806
+#Copier le tar dans /opt/nexus
+#Créer un utilisateur nexus
+#Exécuter en daemon
+#vim /etc/systemd/system/nexus.service
+[Unit]
+Description=nexus service
+After=network.target
+
+[Service]
+Type=forking
+LimitNOFILE=65536
+ExecStart=/opt/nexus/nexus-3.12.1-01/bin/nexus start
+ExecStop=/opt/nexus/nexus-3.12.1-01/bin/nexus stop
+User=nexus
+Restart=on-abort
+
+[Install]
+WantedBy=multi-user.target
+
+#accès en http via navigateur web 
+#http://10.26.9.24:8081
+Créer un dépot docker
+#Connecter le répo docker sur une machine
+#editer le fichier /etc/docker/daemon.json
+{
+  "insecure-registries": [
+    "10.26.9.24:8081",
+    "10.26.9.24:8082"
+ ],
+  "disable-legacy-registry": true
+}
+
+#Connexion
+docker login -u admin -p admin 10.26.9.24:8082
+#Ajouter une image sur un répo
+#tag l'image
+docker tag busybox:latest 10.26.9.24:8082/busybox:latest
+#Puis push
+docker push 10.26.9.24:8082/busybox:latest
