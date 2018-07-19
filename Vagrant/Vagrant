@@ -1,0 +1,38 @@
+### VAGRANT ###
+#Provisionning rapide de VM pour DEV et TEST
+#Download directement sur le site Vagrant
+#PREREQUIS: VirtualBox installe sur le PC
+
+#Vagrant utilise des Box pour deployer les VM
+#Site stockage des Boxs: https://app.vagrantup.com/boxes/search
+#Creation d'un Vagrant File depuis un image
+vagrant init centos/7
+
+#Editer le VagrantFile pour parametrer les informations des VMs
+#exemple deploiement multi machine sous centos7
+Vagrant.configure("2") do |config|
+    config.vm.provider "virtualbox" do |vb|
+        vb.memory = 512
+    end
+    config.vm.box = "centos/7"
+    config.vm.define :master do |master_config|
+        master_config.vm.host_name = "master"
+        master_config.vm.network "private_network", ip: "10.10.0.2"
+    end
+    config.vm.define :slave1 do |slave1_config|
+        slave1_config.vm.host_name = "slave1"
+        slave1_config.vm.network "private_network", ip: "10.10.0.3"
+    end
+    config.vm.define :slave2 do |slave2_config|
+        slave2_config.vm.host_name = "slave2"
+        slave2_config.vm.network "private_network", ip: "10.10.0.4"
+    end
+end
+
+#Lancer le deploiement
+#la commande cherche le VagrantFile dans le repertoire courant
+vagrant up
+
+#Voir status des VMs
+vagrant status
+#Plusieurs commande de gestion est possible, arret,reboot ssh ...
