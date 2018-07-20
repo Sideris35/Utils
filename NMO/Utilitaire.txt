@@ -216,28 +216,36 @@ apt-get update
 
 #Editions d'une image cloud:
 #Utilisation de guestfish
- guestfish --rw -a .img
- #Prompt guestfish
- run
- list-filesystems
- mount /dev/XXX /
- #Edition de l'image
- #Par exemple enlever le mot de passe pour root
- vi /etc/passwd #modifier root:x:... par root::....
- 
- 
- #Utilisation de heat
- #Afficher les job en cours
-  heat stack-list -n
- #Afficher le détail 
- heat resource-list 82bb9fc3-f34c-4097-943a-752d3d554850 #ID STACK
- #heat resource-show ID_STACK Nom_resource
- heat resource-show 82bb9fc3-f34c-4097-943a-752d3d554850 0 
+guestfish --rw -a .img
+#Prompt guestfish
+run
+list-filesystems
+mount /dev/XXX /
+#Edition de l'image
+#Par exemple enlever le mot de passe pour root
+vi /etc/passwd #modifier root:x:... par root::....
+
+
+#Utilisation de heat
+#Afficher les job en cours
+ heat stack-list -n
+#Afficher le détail 
+heat resource-list 82bb9fc3-f34c-4097-943a-752d3d554850 #ID STACK
+#heat resource-show ID_STACK Nom_resource
+heat resource-show 82bb9fc3-f34c-4097-943a-752d3d554850 0 
  
 #Forcer syncrho chrony
 chronyc -a makestep
 #Voir status heure chrony par rapport au ntp
 chronyc tracking
+
+#FIREWALLD
+firewall-cmd --list-all
+firewall-cmd --add-service=http ; firewall-cmd --add-service=https ; firewall-cmd --runtime-to-perm
+firewall-cmd --add-port=5222/tcp --permanent 
+firewall-cmd --get-services
+firewall-cmd --add-service XXXXX
+firewall-cmd --reload 
  
 ######################################################################################################################################################################
 #																	GIT		 																					 #
@@ -535,8 +543,12 @@ sudo iptables -D <INPUT,OUTPUT,FORWARD> <ID> #Supprimer la regles
 ######################################################################################################################################################################
 #DL tar: https://cta-service-cms2.hubspot.com/ctas/v2/public/cs/c/?cta_guid=f59d5f10-099f-4c66-a622-0254373f4a92&placement_guid=920dd7b5-7ef3-47fe-9600-10fecad8aa32&portal_id=1958393&redirect_url=APefjpG1KF6RHmY-Vlp6MZhyEzERkFfJcRcfWWPg3IiuVPq-dO1zDefhAuyz-eQfW3p4u-WvFb7VG4Zr98Y-E4dRAogc0nBJNWcN3Bd6ODPcaR6MtSuug5cHO4uhUsYmpIYwR0vjBfS3yCdGNVL5-iHjnAiQUqNQdV3zW3F0EBTTTu2k81q_XFPqbh-8LEfcHPugY-R-hfNvXd5dpJTFrsVyznqQVkEYmsADd1-W7l-qA-5pXPD9BMjyPxi3M8IcsuhXNlB-FYIL&hsutk=9387ddeaa30c105baa6963236dcbcaeb&canon=https%3A%2F%2Fwww.sonatype.com%2Fnexus-repository-oss&click=4e62fe01-90c2-4b60-a151-a46bf62bf661&utm_referrer=https%3A%2F%2Fwww.sonatype.com%2Fdownload-nexus-repository-trial&pageId=5666824864&__hstc=31049440.9387ddeaa30c105baa6963236dcbcaeb.1531311744694.1531311744694.1531313804998.2&__hssc=31049440.1.1531313804998&__hsfp=3940563806
 #Copier le tar dans /opt/nexus
+#Pre-requis:
+apt-get install openjdk-8-jdk  maven npm
 #Créer un utilisateur nexus
 #Exécuter en daemon
+#vim bin/nexus.rc ajouter le user éxecutant le process (ici nexus)
+run_as_user="nexus"
 #vim /etc/systemd/system/nexus.service
 [Unit]
 Description=nexus service
@@ -553,6 +565,9 @@ Restart=on-abort
 [Install]
 WantedBy=multi-user.target
 
+#Relancer le daemon systemd et lancer nexus
+systemctl daemon-reload
+systemctl start nexus
 #accès en http via navigateur web 
 #http://10.26.9.24:8081
 Créer un dépot docker
@@ -566,6 +581,8 @@ Créer un dépot docker
   "disable-legacy-registry": true
 }
 
+#Relance du daemon docker
+/etc/init.d/docker restart
 #Connexion
 docker login -u admin -p admin 10.26.9.24:8082
 #Ajouter une image sur un répo
