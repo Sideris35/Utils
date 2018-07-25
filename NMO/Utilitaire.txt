@@ -252,6 +252,13 @@ firewall-cmd --add-port=5222/tcp --permanent
 firewall-cmd --get-services
 firewall-cmd --add-service XXXXX
 firewall-cmd --reload 
+
+#Miroir local yum
+#Case: https://access.redhat.com/solutions/23016
+#repoID récupérer dans la commande yum repolist
+reposync --gpgcheck -l --repoid=group_spacewalkproject-java-packages --download_path=/var/www/html
+#Création du repolocal
+createrepo -v chemin_stockagerepo
  
 ######################################################################################################################################################################
 #																	GIT		 																					 #
