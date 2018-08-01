@@ -1,0 +1,124 @@
+#!/bin/bash
+#############################################################
+# Name: register_spwlk.sh                                   #
+# Author: Nicolas MOREL                                     #
+# Version: 1                                                #
+# Desc: Enregistrement d'un serveur sous Spacewalk          #
+#############################################################
+#############################################################
+# V 1.0 # Initialisation du script                          #
+#-----------------------------------------------------------#
+# V 1.1 # Ajout du prerequis yum-utils                      #
+#-----------------------------------------------------------#
+# V 1.2 # Ajout de l'installation de l'agent OSAD           #
+#-----------------------------------------------------------#
+# V X.X #                                                   #
+#-----------------------------------------------------------#
+#############################################################
+
+### VARIABLES ###
+REPO_CLIENT_SPWLK=http://sdifi-mmlflv02v/spwlk-client
+LISTE_KEY="1-centos-7.4-ieg-mlf 1-spwlk-master"
+NB_PARAM=$#
+PARAM=$1
+
+### FONCTION ###
+function usage
+{
+cat << EOF
+Utilisation de la commande:
+        Ex: ./register_spwlk.sh <activation_key>
+        Param 1: Ajouter la cle d'activation voulue parmit la liste ci-dessous
+
+        1-centos-7.4-ieg-mlf     #Clé pour host de la plateforme IEG
+        1-spwlk-master           #Clé unique pour le noeud maitre spacewalk
+EOF
+exit
+}
+
+function verif_param
+{
+if [ $NB_PARAM -lt 1 ]
+then
+        echo "Pas de cle d'activation entre en parametre"
+        usage
+fi
+
+resu=False
+while [ $resu != True ]
+do
+        for key in $LISTE_KEY
+        do
+                if [ $PARAM != $key ]
+                then
+                        resu=False
+                else
+                        resu=True
+                        break
+                fi
+        done
+if [ $resu = False ]
+then
+        echo "La cle utilise n'est pas valide"
+        usage
+fi
+done
+}
+
+function verif_pack
+{
+#Test de présence du package
+rpm -qa |grep -q yum-utils
+resu=$?
+
+if [ $resu -ne 0 ]
+then
+        echo "Installation des yum-utils"
+        yum install -y yum-utils
+fi
+}
+
+function install_osad
+{
+        yum install -y osad
+        sed -i 's;osa_ssl_cert =;osa_ssl_cert = /usr/share/rhn/RHN-ORG-TRUSTED-SSL-CERT;g' /etc/sysconfig/rhn/osad.conf
+}
+
+### BODY  ###
+#Verification des pre-requis d'utilisation du script
+verif_param
+verif_pack
+
+#Suppression au prealable la configuration yum precedente
+rm -f /etc/yum.repos.d/*
+yum clean all
+
+#Ajouter le repo des package necessaire pour le client
+yum-config-manager --add-repo $REPO_CLIENT_SPWLK
+if [ -e /etc/yum.repos.d/sdifi-mmlflv02v_spwlk-client.repo ]
+then
+        echo "gpgcheck=0" >> /etc/yum.repos.d/sdifi-mmlflv02v_spwlk-client.repo
+else
+        echo "Le repository spwlk-client n'est pas rattache"
+        exit
+fi
+
+#Installation des pre-requis
+yum -y install rhn-client-tools rhn-check rhn-setup rhnsd m2crypto yum-rhn-plugin
+
+#Installer le certificat de Spacewalk
+rpm -Uvh http://sdifi-mmlflv01v.ress.ieg.fr/pub/rhn-org-trusted-ssl-cert-1.0-1.noarch.rpm
+
+#Installation de l'agent Osad
+install_osad
+
+#Enregistrement la machine avec une clé d'activation correspondante
+rhnreg_ks --serverUrl=https://sdifi-mmlflv01v.ress.ieg.fr/XMLRPC --sslCACert=/usr/share/rhn/RHN-ORG-TRUSTED-SSL-CERT --activationkey=$PARAM
+
+#Supprimer le repo client spacewalk
+rm -f /etc/yum.repos.d/sdifi-mmlflv02v_spwlk-client.repo
+yum clean all
+
+#Modification de la verification GPG
+sed -i 's/gpgcheck = 1/gpgcheck = 0/g' /etc/yum/pluginconf.d/rhnplugin.conf
+service osad start
