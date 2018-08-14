@@ -245,13 +245,6 @@ chronyc -a makestep
 #Voir status heure chrony par rapport au ntp
 chronyc tracking
 
-#FIREWALLD
-firewall-cmd --list-all
-firewall-cmd --add-service=http ; firewall-cmd --add-service=https ; firewall-cmd --runtime-to-perm
-firewall-cmd --add-port=5222/tcp --permanent 
-firewall-cmd --get-services
-firewall-cmd --add-service XXXXX
-firewall-cmd --reload 
 
 #Miroir local yum
 #Case: https://access.redhat.com/solutions/23016
@@ -259,11 +252,74 @@ firewall-cmd --reload
 reposync --gpgcheck -l --repoid=group_spacewalkproject-java-packages --download_path=/var/www/html
 #Création du repolocal
 createrepo -v chemin_stockagerepo
- 
+#Lister les packages et toutes ces dep
+repoquery -R --resolve --recursive spacewalk-setup-postgresql
+#DL le résultat mais si le package est installe le rpm est pas DL
+repoquery -R --resolve --recursive  spacewalk-setup-postgresql | xargs -r yumdownloader
+#Utiliser cette commande
+repotrack $nom_package
+
+#Verification fichier de configuration NAGIOS
+/usr/local/nagios/bin/nagios -v SDIFI-MMLFLV01V.cfg
+
+#Installation Snare
+#Via CMD ou PS ce déplacer dans le répetoire d'install
+./Install_SNARE.exe /LoadInf="setting.inf"
+#Choisir réinstall -> next ... next 
+#Répertoire d'install
+./SnareCore.exe -x
+
 ######################################################################################################################################################################
-#																	GIT		 																					 #
+#																	FIREWALLD		 																				 #
 ######################################################################################################################################################################
-#Création du user proprio du git
+firewall-cmd --list-all
+firewall-cmd --list-all-zones #lister le contenu de toutes les zones
+firewall-cmd --add-service=http ; firewall-cmd --add-service=https ; firewall-cmd --runtime-to-perm
+firewall-cmd --add-port=5222/tcp --permanent 
+firewall-cmd --get-services
+firewall-cmd --add-service XXXXX
+firewall-cmd --get-zones #lister les zones 
+firewall-cmd --list-all --zone=nom_zone #lister le contenu d'une zone spécifié
+firewall-cmd --reload 
+
+#Detail services
+cat /usr/lib/firewalld/services/*.xml
+
+## Zones
+firewall-cmd --permanent --new-zone=test #Création de la zone test
+firewall-cmd --permanent --zone=test --add-interface=eth0 #Ajouter une interface à la zone
+firewall-cmd --permanent --zone=test --change-interface=eth0 #Déplacer une interface de zone
+firewall-cmd --permanent --zone=test --remove-interface=eth0 #Supprimer une interface de la zone
+firewall-cmd --permanent --zone=test --add-source=192.168.1.0/24 #Ajouter source pour dans la zone pour les traitements des paquet par rapport à cette zone
+firewall-cmd --permanent --zone=test --add-service=ssh #Ajout du service ssh dans la zone test
+firewall-cmd --permanent --add-port=9000/tcp --zone=test #Ajout d'un port dans la zone test
+firewall-cmd --reload #Reload de la configuration pour prise en compte des modifications
+
+## RICH RULES
+#Sources: https://www.rootusers.com/how-to-use-firewalld-rich-rules-and-zones-for-filtering-and-nat/
+firewall-cmd --permanent --zone=testing --add-rich-rule='rule family=ipv4 source address=10.0.0.0/24 destination address=192.168.0.10/32 port port=8080-8090 protocol=tcp accept' 
+firewall-cmd --permanent --zone=testing --list-rich-rules
+firewall-cmd --permanent --zone=testing --remove-rich-rule='rule family=ipv4 source address=10.0.0.0/24 destination address=192.168.0.10/32 port port=8080-8090 protocol=tcp accept'
+firewall-cmd --permanent --zone=testing --add-rich-rule='rule family=ipv4 source address=192.168.0.10/24 reject'
+firewall-cmd --permanent --add-rich-rule='rule service name=ssh limit value=10/m accept'
+firewall-cmd --permanent --add-rich-rule='rule family="ipv4" source address="192.168.0.0/24" service name="ssh" log prefix="ssh" level="info" limit value="50/m" accept'
+#NAT
+#Masquerade
+firewall-cmd --permanent --zone=testing --add-masquerade #Activer le masquerade sur la zone
+firewall-cmd --permanent --query-masquerade  #Verifier que que le masquerade est activé
+firewall-cmd --permanent --zone=testing --add-rich-rule='rule family=ipv4 source address=192.168.1.0/24 masquerade' #Appliquer le masquerade sur une rich rule pour la source 192.168.1.0/24
+#Port Forwarding
+firewall-cmd --permanent --zone=testing --add-forward-port=port=22:proto=tcp:toport=2222:toaddr=10.0.0.10
+firewall-cmd --permanent --zone=testing --query-forward-port=port=22:proto=tcp:toport=2222:toaddr=10.0.0.10 #We can confirm that masquerading has been successfully enabled with the use of --query-forward-port
+firewall-cmd --permanent --list-all --zone=testing
+firewall-cmd --permanent --zone=testing --add-rich-rule='rule family=ipv4 source address=192.168.1.0/24 forward-port port=22 protocol=tcp to-port=2222 to-addr=10.0.0.10'
+firewall-cmd --permanent --zone=testing --list-rich-rules
+
+
+######################################################################################################################################################################
+#																	GIT		 																					 	 #
+######################################################################################################################################################################
+#Création du user proprio du gitF
 adduser git
 #Ajouter les clé ssh.pub des utilisateurs dans le .ssh/authorized_keys si besoin
 mkdir nom_projet
